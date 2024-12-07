@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YOLOv8 Burn Detection</title>
+    <script>
+        async function handleImageUpload(event) {
+            event.preventDefault();
+
+            const imageInput = document.getElementById('image');
+            const resultSection = document.getElementById('result');
+            const errorSection = document.getElementById('error');
+
+            resultSection.innerHTML = "";
+            errorSection.innerHTML = "";
+
+            if (imageInput.files.length === 0) {
+                errorSection.textContent = "Please select an image before submitting.";
+                return;
+            }
+
+            const file = imageInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = async function () {
+                const base64String = reader.result.split(',')[1]; // Get Base64 data
+
+                try {
+                    const response = await fetch('/detect', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ image: base64String, name: file.name.split('.').slice(0, -1)[0] }),
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`Server error: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+
+                    if (data.result_image) {
+                        resultSection.innerHTML = `<img src="data:image/jpeg;base64,${data.result_image}" alt="Result Image" style="max-width: 100%; height: auto;">`;
+                    } else if (data.error) {
+                        errorSection.textContent = data.error;
+                    } else {
+                        errorSection.textContent = "Unexpected response from the server.";
+                    }
+                } catch (err) {
+                    errorSection.textContent = `Error: ${err.message}`;
+                }
+            };
+
+            reader.readAsDataURL(file); // Convert file to Base64
+        }
+    </script>
+</head>
+
+<body>
+    <h1>YOLOv8 Burn Detection</h1>
+
+    <form id="upload-form" onsubmit="handleImageUpload(event)">
+        <label for="image">Choose an Image</label>
+        <input type="file" name="image" id="image" accept="image/*" required>
+        <button type="submit">Upload and Detect</button>
+    </form>
+
+    <h2>Result:</h2>
+    <div id="result"></div>
+    <p id="error" style="color: red;"></p>
+</body>
+
+</html>
